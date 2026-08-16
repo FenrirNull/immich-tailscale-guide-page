@@ -1,4 +1,39 @@
-<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <meta name="description" content="A step-by-step guide to installing Immich with Tailscale on Proxmox using an LXC container."> <title>How to Install Immich with Tailscale | Proxmox Guide</title> <style> :root { --bg: #0d1117; --surface: #161b22; --surface-light: #21262d; --border: #30363d; --text: #e6edf3; --muted: #8b949e; --blue: #58a6ff; --green: #3fb950; --yellow: #d29922; --red: #f85149; --code-bg: #010409; --max-width: 900px; }
+<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+name="description"
+content="A step-by-step guide to installing Immich on Proxmox with an LXC container, separate storage, and Tailscale for remote access."
+
+<meta name="author" content="Your Name"> <title>Installing Immich with Tailscale | Proxmox Guide</title> <style> /* ========================================================= VARIABLES ========================================================= */
+
+:root {
+  --background: #0d1117;
+  --background-secondary: #161b22;
+  --background-tertiary: #21262d;
+
+  --border: #30363d;
+
+  --text: #e6edf3;
+  --text-secondary: #8b949e;
+
+  --blue: #58a6ff;
+  --blue-dark: #1f6feb;
+
+  --green: #3fb950;
+  --yellow: #d29922;
+  --red: #f85149;
+
+  --code-background: #010409;
+
+  --sidebar-width: 280px;
+  --content-width: 900px;
+
+  --radius: 10px;
+}
+
+/* =========================================================
+   RESET
+========================================================= */
 
 * {
   box-sizing: border-box;
@@ -6,12 +41,16 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 30px;
 }
 
 body {
   margin: 0;
-  background: var(--bg);
+  padding: 0;
+
+  background: var(--background);
   color: var(--text);
+
   font-family:
     -apple-system,
     BlinkMacSystemFont,
@@ -19,973 +58,1889 @@ body {
     Helvetica,
     Arial,
     sans-serif;
+
   line-height: 1.7;
+}
+
+img {
+  max-width: 100%;
 }
 
 a {
   color: var(--blue);
-}
-
-a:hover {
   text-decoration: none;
 }
 
-header {
-  padding: 80px 20px 60px;
-  text-align: center;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(88, 166, 255, 0.12),
-      transparent
-    );
-  border-bottom: 1px solid var(--border);
-}
-
-header h1 {
-  max-width: 900px;
-  margin: 0 auto 15px;
-  font-size: clamp(2.2rem, 6vw, 4rem);
-  line-height: 1.15;
-}
-
-header p {
-  max-width: 700px;
-  margin: auto;
-  color: var(--muted);
-  font-size: 1.15rem;
-}
-
-.container {
-  width: min(calc(100% - 40px), var(--max-width));
-  margin: 0 auto;
-}
-
-main {
-  padding: 50px 0 80px;
-}
-
-h2 {
-  margin-top: 70px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
-  font-size: 1.9rem;
-}
-
-h3 {
-  margin-top: 35px;
-  font-size: 1.35rem;
-}
-
-.intro {
-  font-size: 1.1rem;
-  color: #c9d1d9;
-}
-
-.toc {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 25px 30px;
-  margin: 35px 0;
-}
-
-.toc h2 {
-  border: 0;
-  margin: 0 0 10px;
-  padding: 0;
-  font-size: 1.3rem;
-}
-
-.toc ol {
-  margin-bottom: 0;
-}
-
-.warning,
-.tip,
-.danger {
-  padding: 16px 20px;
-  margin: 25px 0;
-  border-radius: 8px;
-  border-left: 4px solid;
-}
-
-.warning {
-  background: rgba(210, 153, 34, 0.1);
-  border-color: var(--yellow);
-}
-
-.tip {
-  background: rgba(63, 185, 80, 0.1);
-  border-color: var(--green);
-}
-
-.danger {
-  background: rgba(248, 81, 73, 0.1);
-  border-color: var(--red);
-}
-
-.warning strong,
-.tip strong,
-.danger strong {
-  display: block;
-  margin-bottom: 5px;
+a:hover {
+  text-decoration: underline;
 }
 
 code {
-  padding: 2px 6px;
-  border-radius: 5px;
-  background: var(--surface-light);
+  padding: 3px 6px;
+
+  background: var(--background-tertiary);
+
+  border-radius: 6px;
+
+  color: #f0f6fc;
+
   font-family:
     "SFMono-Regular",
     Consolas,
     "Liberation Mono",
+    Menlo,
     monospace;
+
   font-size: 0.9em;
 }
 
 pre {
-  overflow-x: auto;
-  padding: 18px;
-  background: var(--code-bg);
+  margin: 20px 0;
+
+  padding: 20px;
+
+  background: var(--code-background);
+
   border: 1px solid var(--border);
-  border-radius: 8px;
-  line-height: 1.5;
+
+  border-radius: var(--radius);
+
+  overflow-x: auto;
+
+  box-shadow:
+    0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 pre code {
   padding: 0;
+
   background: transparent;
+
   color: #e6edf3;
+
+  font-size: 0.9rem;
+
+  line-height: 1.6;
 }
 
-.screenshot {
-  display: block;
-  width: 100%;
-  max-width: 850px;
-  height: auto;
-  margin: 25px auto;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-}
+/* =========================================================
+   HEADER
+========================================================= */
 
-.placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 200px;
-  padding: 30px;
-  margin: 25px 0;
-  background: var(--surface);
-  border: 2px dashed var(--border);
-  border-radius: 8px;
-  color: var(--muted);
+.hero {
+  padding: 90px 30px 80px;
+
+  background:
+    radial-gradient(
+      circle at top,
+      rgba(88, 166, 255, 0.18),
+      transparent 55%
+    ),
+
+    linear-gradient(
+      180deg,
+      #111827 0%,
+      var(--background) 100%
+    );
+
+  border-bottom: 1px solid var(--border);
+
   text-align: center;
 }
+
+.hero-content {
+  max-width: 1000px;
+
+  margin: auto;
+}
+
+.hero-badge {
+  display: inline-block;
+
+  margin-bottom: 20px;
+
+  padding: 6px 12px;
+
+  border: 1px solid var(--border);
+
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.04);
+
+  color: var(--text-secondary);
+
+  font-size: 0.85rem;
+}
+
+.hero h1 {
+  margin: 0 auto 20px;
+
+  max-width: 900px;
+
+  font-size:
+    clamp(2.4rem, 7vw, 4.5rem);
+
+  line-height: 1.1;
+
+  letter-spacing: -0.04em;
+}
+
+.hero h1 span {
+  color: var(--blue);
+}
+
+.hero p {
+  max-width: 750px;
+
+  margin: auto;
+
+  color: var(--text-secondary);
+
+  font-size: 1.2rem;
+}
+
+/* =========================================================
+   LAYOUT
+========================================================= */
+
+.layout {
+  display: grid;
+
+  grid-template-columns:
+    var(--sidebar-width)
+    minmax(0, 1fr);
+
+  max-width: 1400px;
+
+  margin: auto;
+}
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+.sidebar {
+  position: sticky;
+
+  top: 0;
+
+  align-self: start;
+
+  height: 100vh;
+
+  padding: 35px 25px;
+
+  border-right: 1px solid var(--border);
+
+  overflow-y: auto;
+}
+
+.sidebar-title {
+  margin-bottom: 20px;
+
+  color: var(--text);
+
+  font-weight: 700;
+
+  font-size: 0.9rem;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.08em;
+}
+
+.sidebar a {
+  display: block;
+
+  padding: 7px 10px;
+
+  margin: 2px 0;
+
+  border-radius: 6px;
+
+  color: var(--text-secondary);
+
+  font-size: 0.9rem;
+}
+
+.sidebar a:hover {
+  background: var(--background-tertiary);
+
+  color: var(--text);
+  text-decoration: none;
+}
+
+.sidebar .main-link {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* =========================================================
+   MAIN CONTENT
+========================================================= */
+
+main {
+  min-width: 0;
+
+  padding: 60px 50px 100px;
+}
+
+.content {
+  max-width: var(--content-width);
+
+  margin: auto;
+}
+
+section {
+  margin-bottom: 75px;
+}
+
+h2 {
+  margin-top: 0;
+  margin-bottom: 25px;
+
+  padding-bottom: 12px;
+
+  border-bottom: 1px solid var(--border);
+
+  font-size: 2rem;
+
+  line-height: 1.3;
+}
+
+h3 {
+  margin-top: 35px;
+
+  font-size: 1.35rem;
+}
+
+p {
+  margin: 0 0 18px;
+}
+
+ul,
+ol {
+  margin-bottom: 25px;
+
+  padding-left: 25px;
+}
+
+li {
+  margin-bottom: 8px;
+}
+
+strong {
+  color: #ffffff;
+}
+
+/* =========================================================
+   INTRO
+========================================================= */
+
+.intro {
+  padding: 25px;
+
+  margin-bottom: 35px;
+
+  background: var(--background-secondary);
+
+  border: 1px solid var(--border);
+
+  border-radius: var(--radius);
+
+  font-size: 1.05rem;
+}
+
+/* =========================================================
+   STEP NUMBER
+========================================================= */
 
 .step-number {
   color: var(--blue);
 }
 
-.final {
-  margin-top: 60px;
-  padding: 30px;
-  background: var(--surface);
+/* =========================================================
+   ALERTS
+========================================================= */
+
+.alert {
+  margin: 25px 0;
+
+  padding: 18px 20px;
+
+  border-left: 4px solid;
+
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.alert-title {
+  display: block;
+
+  margin-bottom: 5px;
+
+  font-weight: 700;
+}
+
+.alert.warning {
+  background: rgba(210, 153, 34, 0.10);
+
+  border-color: var(--yellow);
+}
+
+.alert.tip {
+  background: rgba(63, 185, 80, 0.10);
+
+  border-color: var(--green);
+}
+
+.alert.danger {
+  background: rgba(248, 81, 73, 0.10);
+
+  border-color: var(--red);
+}
+
+.alert.info {
+  background: rgba(88, 166, 255, 0.10);
+
+  border-color: var(--blue);
+}
+
+/* =========================================================
+   SCREENSHOTS
+========================================================= */
+
+figure {
+  margin: 30px 0;
+}
+
+.screenshot {
+  display: block;
+
+  width: 100%;
+
+  height: auto;
+
   border: 1px solid var(--border);
-  border-radius: 10px;
+
+  border-radius: var(--radius);
+
+  background: var(--background-secondary);
+
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.25);
+}
+
+figcaption {
+  margin-top: 8px;
+
+  color: var(--text-secondary);
+
+  font-size: 0.85rem;
+
   text-align: center;
 }
+
+/* =========================================================
+   IMAGE PLACEHOLDER
+========================================================= */
+
+.image-placeholder {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  min-height: 220px;
+
+  margin: 30px 0;
+
+  padding: 30px;
+
+  border: 2px dashed var(--border);
+
+  border-radius: var(--radius);
+
+  background: var(--background-secondary);
+
+  color: var(--text-secondary);
+
+  text-align: center;
+}
+
+/* =========================================================
+   LINKS
+========================================================= */
+
+.link-card {
+  display: block;
+
+  padding: 18px 20px;
+
+  margin: 12px 0;
+
+  background: var(--background-secondary);
+
+  border: 1px solid var(--border);
+
+  border-radius: var(--radius);
+
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.link-card:hover {
+  transform: translateY(-2px);
+
+  border-color: var(--blue);
+
+  text-decoration: none;
+}
+
+.link-card strong {
+  display: block;
+
+  margin-bottom: 3px;
+}
+
+.link-card span {
+  color: var(--text-secondary);
+
+  font-size: 0.9rem;
+}
+
+/* =========================================================
+   SUCCESS BOX
+========================================================= */
+
+.success {
+  margin-top: 40px;
+
+  padding: 35px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(63, 185, 80, 0.12),
+      rgba(88, 166, 255, 0.08)
+    );
+
+  border: 1px solid rgba(63, 185, 80, 0.35);
+
+  border-radius: var(--radius);
+
+  text-align: center;
+}
+
+.success h2 {
+  border: 0;
+
+  padding: 0;
+
+  margin-bottom: 15px;
+
+  color: var(--green);
+}
+
+/* =========================================================
+   FOOTER
+========================================================= */
 
 footer {
-  padding: 35px 20px;
-  text-align: center;
-  color: var(--muted);
+  padding: 40px 20px;
+
   border-top: 1px solid var(--border);
+
+  background: var(--background-secondary);
+
+  color: var(--text-secondary);
+
+  text-align: center;
 }
 
-ul,
-ol {
-  padding-left: 25px;
+footer p {
+  margin: 5px;
 }
 
-li {
-  margin: 7px 0;
-}
+/* =========================================================
+   MOBILE
+========================================================= */
 
-@media (max-width: 600px) {
-  header {
-    padding: 55px 15px 45px;
+@media (max-width: 900px) {
+
+  .layout {
+    display: block;
   }
 
-  .container {
-    width: min(calc(100% - 30px), var(--max-width));
+  .sidebar {
+    position: static;
+
+    height: auto;
+
+    padding: 20px;
+
+    border-right: 0;
+
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar nav {
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 2px;
   }
 
   main {
-    padding-top: 30px;
+    padding: 40px 20px 80px;
   }
 
-  h2 {
-    font-size: 1.6rem;
+  .hero {
+    padding: 65px 20px;
   }
 
-  pre {
-    font-size: 0.82rem;
+  section {
+    margin-bottom: 60px;
   }
 }
 
-</style> </head> <body> <header> <div class="container"> <h1>How to Install Immich with Tailscale</h1> <p> A step-by-step guide to self-hosting Immich on Proxmox using an LXC container and accessing it securely with Tailscale. </p> </div> </header> <main> <div class="container">
+@media (max-width: 550px) {
 
-<p class="intro">
-  <a href="https://immich.app/" target="_blank" rel="noopener">Immich</a>
-  is a self-hosted photo storage solution and a great alternative to
-  Google Photos. If you're like me and don't want Google having access
-  to all of your photos, hosting your own photo library is a great option.
-</p>
+  .sidebar nav {
+    display: block;
+  }
 
-<p>
-  One of the problems with self-hosting anything is being able to access
-  it when you're away from home. That's where
-  <a href="https://tailscale.com/" target="_blank" rel="noopener">Tailscale</a>
-  comes in. Tailscale allows you to securely access your Immich server
-  from outside your home network without exposing Immich directly to
-  the public internet.
-</p>
+  .hero h1 {
+    font-size: 2.5rem;
+  }
 
-<p>
-  For this guide, I'm going to install Immich in an LXC container on
-  <a href="https://www.proxmox.com/" target="_blank" rel="noopener">Proxmox</a>
-  using the
-  <a href="https://community-scripts.org/" target="_blank" rel="noopener">
-    Proxmox Community Scripts
-  </a>.
-</p>
+  .hero p {
+    font-size: 1rem;
+  }
 
-<p>
-  If you haven't heard of the Proxmox Community Scripts project, it is
-  a fantastic resource for quickly setting up applications in Proxmox.
-  For this installation, I'll be using their
-  <a href="https://community-scripts.org/scripts/immich"
-     target="_blank"
-     rel="noopener">
-    Immich Community Script
-  </a>.
-</p>
+  main {
+    padding: 35px 15px 60px;
+  }
 
-<nav class="toc">
-  <h2>Table of Contents</h2>
-  <ol>
-    <li><a href="#step1">Install Immich</a></li>
-    <li><a href="#step2">Select the Immich Options</a></li>
-    <li><a href="#step3">Configure Machine Learning</a></li>
-    <li><a href="#step4">Wait for the Installation</a></li>
-    <li><a href="#step5">Configure the Additional Hard Drive</a></li>
-    <li><a href="#step6">Configure the LXC Mount</a></li>
-    <li><a href="#step7">Configure the Immich Mount</a></li>
-    <li><a href="#step8">Prepare the LXC for Tailscale</a></li>
-    <li><a href="#step9">Install Tailscale</a></li>
-    <li><a href="#step10">Set Up the Immich Server</a></li>
-    <li><a href="#step11">Access Immich from Other Devices</a></li>
-    <li><a href="#final">Final Thoughts</a></li>
-  </ol>
-</nav>
+  pre {
+    padding: 15px;
 
-<h2>Important Notes</h2>
+    border-radius: 7px;
+  }
 
-<ul>
-  <li>This guide assumes you already understand basic Proxmox administration.</li>
-  <li><strong>Wiping a disk will permanently erase all data on that disk.</strong></li>
-  <li>Always make sure you have backups before modifying storage.</li>
-  <li>Commands involving <code>pct</code>, mounts, permissions, and LXC configuration can break your container if entered incorrectly.</li>
-  <li>Read each command before running it, especially commands that modify disks or permissions.</li>
-</ul>
+  pre code {
+    font-size: 0.78rem;
+  }
 
-<div class="tip">
-  <strong>TIP</strong>
-  Do not close the shell while the Community Script is installing Immich.
-  Closing the shell can interrupt the process and kill the process creating
-  the LXC container.
+  h2 {
+    font-size: 1.65rem;
+  }
+}
+
+</style> </head> <body> <!-- ========================================================= HERO ========================================================== --> <header class="hero">
+
+<div class="hero-content">
+
+  <div class="hero-badge">
+    Proxmox • Immich • Tailscale
+  </div>
+
+  <h1>
+    How to Install
+    <span>Immich with Tailscale</span>
+  </h1>
+
+  <p>
+    A step-by-step guide to self-hosting your own photo library
+    with Proxmox, Immich, separate storage, and secure remote access.
+  </p>
+
 </div>
 
-<div class="tip">
-  <strong>TIP</strong>
-  If you have physical access to your Proxmox machine, I recommend installing
-  Immich using a monitor and keyboard connected directly to the machine rather
-  than relying on the web GUI. This makes it easier to recover if something
-  goes wrong during installation.
-</div>
+</header> <!-- ========================================================= PAGE LAYOUT ========================================================== --> <div class="layout">
 
-<section id="step1">
-  <h2><span class="step-number">Step 1.</span> Install Immich</h2>
+<!-- =======================================================
+     SIDEBAR
+======================================================== -->
 
-  <p>
-    First, open your Proxmox instance and open the <strong>Shell</strong>
-    for your Proxmox node.
-  </p>
+<aside class="sidebar">
 
-  <p>Run the following command:</p>
+  <div class="sidebar-title">
+    Guide
+  </div>
 
-  <pre><code>bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/immich.sh)"</code></pre>
+  <nav>
 
-  <p>
-    This will download and run the Immich installation script from the
-    Proxmox Community Scripts project.
-  </p>
-
-  <p>
-    If you don't want to blindly copy and run a script, you can view
-    the source code first:
-  </p>
-
-  <p>
-    <a href="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/immich.sh"
-       target="_blank"
-       rel="noopener">
-      View the Immich installation script
+    <a href="#introduction" class="main-link">
+      Introduction
     </a>
-  </p>
-</section>
 
-<section id="step2">
-  <h2><span class="step-number">Step 2.</span> Select the Immich Options</h2>
+    <a href="#important-notes">
+      Important Notes
+    </a>
 
-  <p>
-    When you run the script, you'll be presented with several options
-    for your Immich installation.
-  </p>
+    <a href="#step1">
+      1. Install Immich
+    </a>
 
-  <div class="placeholder">
-    Screenshot: Immich installation options<br>
-    Replace this box with your screenshot.
-  </div>
+    <a href="#step2">
+      2. Select Options
+    </a>
 
-  <p>
-    For this installation, I'm going to use the default settings.
-  </p>
+    <a href="#step3">
+      3. Machine Learning
+    </a>
 
-  <p>
-    Depending on your hardware and how you plan to use Immich, you may
-    want to change things such as the disk size or CPU and memory allocation.
-  </p>
+    <a href="#step4">
+      4. Finish Installation
+    </a>
 
-  <p>
-    You can also change some of these settings later. For example,
-    the storage size of the LXC can be adjusted from the
-    <strong>Hardware</strong> tab of the container.
-  </p>
+    <a href="#step5">
+      5. Additional Storage
+    </a>
 
-  <p>
-    For this installation, I have a separate drive that I want to use
-    specifically for my Immich photos. I'll configure that later in this guide.
-  </p>
-</section>
+    <a href="#step6">
+      6. Configure Mount
+    </a>
 
-<section id="step3">
-  <h2><span class="step-number">Step 3.</span> Configure Machine Learning</h2>
+    <a href="#step7">
+      7. Configure Immich
+    </a>
 
-  <p>
-    During the installation, the script will ask you about the
-    machine-learning backend.
-  </p>
+    <a href="#step8">
+      8. Prepare Tailscale
+    </a>
 
-  <div class="placeholder">
-    Screenshot: CPU / Intel OpenVINO options<br>
-    Replace this box with your screenshot.
-  </div>
+    <a href="#step9">
+      9. Install Tailscale
+    </a>
 
-  <p>
-    The default option uses your CPU for machine-learning tasks.
-    In my experience, Immich's machine learning works surprisingly well
-    even on older CPUs.
-  </p>
+    <a href="#step10">
+      10. Set Up Immich
+    </a>
 
-  <p>
-    The Intel OpenVINO option can be used with compatible Intel hardware.
-    Depending on your system, OpenVINO can use the Intel CPU and/or
-    integrated GPU (iGPU) to accelerate machine-learning tasks.
-  </p>
+    <a href="#step11">
+      11. Access From Other Devices
+    </a>
 
-  <p>
-    For this installation, I'm going to try the Intel OpenVINO option.
-  </p>
+    <a href="#final-thoughts">
+      Final Thoughts
+    </a>
 
-  <div class="warning">
-    <strong>Note</strong>
-    The OpenVINO option can require more memory than using the CPU alone.
-    If you choose this option, you may want to increase the amount of RAM
-    assigned to the LXC container.
-  </div>
+    <a href="#links">
+      Useful Links
+    </a>
 
-  <p>
-    You can change the amount of memory assigned to the container from
-    the <strong>Hardware</strong> tab in Proxmox.
-  </p>
+  </nav>
 
-  <p>
-    I'm going to leave mine at its current amount because, unfortunately,
-    I don't have any more RAM to give it.
-  </p>
-</section>
+</aside>
 
-<section id="step4">
-  <h2><span class="step-number">Step 4.</span> Wait for the Installation to Finish</h2>
+<!-- =======================================================
+     MAIN
+======================================================== -->
 
-  <p>Now comes the hardest part:</p>
+<main>
 
-  <p><strong>Wait.</strong></p>
+  <div class="content">
 
-  <p>
-    The installation can take anywhere from around 15 minutes to a couple
-    of hours, depending on your hardware and network connection.
-  </p>
+    <!-- ===================================================
+         INTRODUCTION
+    ==================================================== -->
 
-  <p>
-    For my system, the installation took approximately 30 minutes.
-  </p>
+    <section id="introduction">
 
-  <p>Once the installation is complete, update the system:</p>
+      <div class="intro">
 
-  <pre><code>apt update
+        <p>
+          <a
+            href="https://immich.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Immich
+          </a>
+          is a self-hosted photo storage solution and a great
+          alternative to Google Photos.
+        </p>
+
+        <p>
+          If you're like me and don't want Google having access
+          to all of your photos, hosting your own photo library
+          is a great option.
+        </p>
+
+        <p>
+          One of the problems with self-hosting anything is being
+          able to access it when you're away from home.
+          That's where
+          <a
+            href="https://tailscale.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Tailscale
+          </a>
+          comes in.
+        </p>
+
+        <p>
+          Tailscale allows you to securely access your Immich
+          server from outside your home network without exposing
+          Immich directly to the public internet.
+        </p>
+
+        <p>
+          For this guide, I'm going to install Immich in an LXC
+          container on
+          <a
+            href="https://www.proxmox.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Proxmox
+          </a>
+          using the
+          <a
+            href="https://community-scripts.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Proxmox Community Scripts
+          </a>.
+        </p>
+
+        <p>
+          If you haven't heard of the Proxmox Community Scripts
+          project, it is a fantastic resource for quickly setting
+          up applications in Proxmox.
+        </p>
+
+        <p>
+          For this installation, I'll be using their
+          <a
+            href="https://community-scripts.org/scripts/immich"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Immich Community Script
+          </a>.
+        </p>
+
+      </div>
+
+    </section>
+
+    <!-- ===================================================
+         IMPORTANT NOTES
+    ==================================================== -->
+
+    <section id="important-notes">
+
+      <h2>
+        Important Notes
+      </h2>
+
+      <p>
+        Before getting started, there are a few things you should know.
+      </p>
+
+      <ul>
+
+        <li>
+          This guide assumes you already understand basic
+          Proxmox administration.
+        </li>
+
+        <li>
+          <strong>
+            Wiping a disk will permanently erase all data on that disk.
+          </strong>
+        </li>
+
+        <li>
+          Always have backups before modifying storage.
+        </li>
+
+        <li>
+          Commands involving
+          <code>pct</code>,
+          mounts, permissions, and LXC configuration can break
+          your container if entered incorrectly.
+        </li>
+
+        <li>
+          Read each command before running it.
+        </li>
+
+      </ul>
+
+      <div class="alert tip">
+
+        <span class="alert-title">
+          TIP
+        </span>
+
+        Do not close your shell while the Community Script is
+        installing Immich. Closing the shell can interrupt the
+        process creating the LXC container.
+
+      </div>
+
+      <div class="alert tip">
+
+        <span class="alert-title">
+          TIP
+        </span>
+
+        If you have physical access to your Proxmox machine,
+        I recommend installing it with a monitor and keyboard
+        connected directly to the machine instead of relying
+        on the web GUI.
+
+      </div>
+
+    </section>
+
+    <!-- ===================================================
+         STEP 1
+    ==================================================== -->
+
+    <section id="step1">
+
+      <h2>
+        <span class="step-number">Step 1.</span>
+        Install Immich
+      </h2>
+
+      <p>
+        First, open your Proxmox instance and open the
+        <strong>Shell</strong> for your Proxmox node.
+      </p>
+
+      <p>
+        Run the following command:
+      </p>
+
+      <pre><code>bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/immich.sh)"</code></pre>
+
+      <p>
+        This will download and run the Immich installation
+        script from the Proxmox Community Scripts project.
+      </p>
+
+      <p>
+        If you don't want to blindly copy that command into
+        your shell, you can view the source code first:
+      </p>
+
+      <p>
+        <a
+          href="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/immich.sh"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          View the Immich installation script
+        </a>
+      </p>
+
+    </section>
+
+    <!-- ===================================================
+         STEP 2
+    ==================================================== -->
+
+    <section id="step2">
+
+      <h2>
+        <span class="step-number">Step 2.</span>
+        Select the Immich Options
+      </h2>
+
+      <p>
+        When you run the script, it will bring you to a screen
+        with several options for your Immich installation.
+      </p>
+
+      <!-- CHANGE THIS IMAGE PATH -->
+
+      <figure>
+
+        <img
+          src="images/install.png"
+          alt="Immich installation options"
+          class="screenshot"
+        >
+
+        <figcaption>
+          Immich installation options
+        </figcaption>
+
+      </figure>
+
+      <p>
+        For this installation, I'm going to use the default settings.
+      </p>
+
+      <p>
+        You might want to change some things, such as the hard
+        drive size.
+      </p>
+
+      <p>
+        You can also change some settings after installation.
+        For example, you can resize the LXC from the
+        <strong>Hardware</strong> tab of the container.
+      </p>
+
+      <p>
+        For this installation, I have a separate drive that I
+        want to use for my Immich photos, so I'll configure that
+        later in this tutorial.
+      </p>
+
+    </section>
+
+    <!-- ===================================================
+         STEP 3
+    ==================================================== -->
+
+    <section id="step3">
+
+      <h2>
+        <span class="step-number">Step 3.</span>
+        Configure Machine Learning
+      </h2>
+
+      <p>
+        During the installation, it will bring up a prompt about
+        the machine-learning type. It will ask whether you want
+        to use your CPU or Intel OpenVINO.
+      </p>
+
+      <figure>
+
+        <img
+          src="images/cpu.png"
+          alt="Immich CPU and Intel OpenVINO options"
+          class="screenshot"
+        >
+
+        <figcaption>
+          Immich machine-learning options
+        </figcaption>
+
+      </figure>
+
+      <p>
+        The default option uses your CPU for machine-learning tasks.
+      </p>
+
+      <p>
+        I have had great performance using the CPU, even though
+        I have an old CPU.
+      </p>
+
+      <p>
+        The Intel OpenVINO option can be used with compatible
+        Intel hardware. Depending on your hardware, it can use
+        the Intel CPU or offload some work onto the integrated
+        GPU (iGPU).
+      </p>
+
+      <p>
+        For this installation, I'm going to try the second option.
+      </p>
+
+      <div class="alert warning">
+
+        <span class="alert-title">
+          Memory Warning
+        </span>
+
+        The Intel OpenVINO option can be more memory-intensive
+        than the CPU option. You may want to increase the amount
+        of memory assigned to your LXC container.
+
+      </div>
+
+      <p>
+        You can change the amount of memory from the
+        <strong>Hardware</strong> tab of the LXC container.
+      </p>
+
+      <p>
+        I'm going to keep mine the same because I don't actually
+        have any more RAM.
+      </p>
+
+    </section>
+
+    <!-- ===================================================
+         STEP 4
+    ==================================================== -->
+
+    <section id="step4">
+
+      <h2>
+        <span class="step-number">Step 4.</span>
+        Wait for the Installation to Finish
+      </h2>
+
+      <p>
+        Now comes the hardest part:
+      </p>
+
+      <h3>
+        Wait.
+      </h3>
+
+      <p>
+        The installation can take anywhere from 15 minutes to
+        2 hours depending on your hardware.
+      </p>
+
+      <p>
+        It took my computer approximately 30 minutes.
+      </p>
+
+      <p>
+        After the installation is complete, update the system:
+      </p>
+
+      <pre><code>apt update
 
 apt upgrade</code></pre>
 
-  <p>
-    I recommend doing this before continuing with the rest of the configuration.
-  </p>
-</section>
-
-<section id="step5">
-  <h2><span class="step-number">Step 5.</span> Configure the Additional Hard Drive</h2>
-
-  <p>
-    I want to use a separate drive for all of my Immich photos.
-  </p>
-
-  <p>
-    There are a couple of reasons for this. First, I don't want a failure
-    of the main Proxmox storage drive to take my photo library with it.
-    Second, I only have two 250 GB drives, so I want to make use of as
-    much storage as possible.
-  </p>
-
-  <p>
-    For this guide, I'll assume you already have another drive installed
-    in your Proxmox machine.
-  </p>
-
-  <h3>Find the Drive</h3>
-
-  <p>
-    In the Proxmox web interface, select your Proxmox node and go to:
-  </p>
-
-  <p><strong>Disks</strong></p>
-
-  <div class="placeholder">
-    Screenshot: Proxmox Disks tab<br>
-    Replace this box with your screenshot.
-  </div>
-
-  <p>
-    Select the drive you want to use for Immich.
-  </p>
+    </section>
 
-  <div class="danger">
-    <strong>⚠️ IMPORTANT</strong>
-    Make absolutely sure that the drive does not contain anything you need.
-    The next step will erase the drive.
-  </div>
+    <!-- ===================================================
+         STEP 5
+    ==================================================== -->
 
-  <p>
-    Click <strong>Wipe Disk</strong>.
-  </p>
+    <section id="step5">
 
-  <p>
-    Once the disk has been wiped, initialize it using <strong>GPT</strong>.
-  </p>
+      <h2>
+        <span class="step-number">Step 5.</span>
+        Configure the Other Hard Drive
+      </h2>
 
-  <p>
-    Next, go to the <strong>Directory</strong> section under
-    <strong>Disks</strong>.
-  </p>
+      <p>
+        I want a separate drive for all of my Immich photos.
+      </p>
 
-  <p>
-    Click <strong>Create: Directory</strong>.
-  </p>
+      <p>
+        Partly because I don't want the main drive for Proxmox
+        to fail and then lose all of my pictures, but also because
+        I only have two 250 GB drives and want to be able to use
+        all of the available storage.
+      </p>
 
-  <p>
-    Configure the directory using the disk you just prepared.
-  </p>
+      <p>
+        To do this, you first need another drive. That is outside
+        the scope of this tutorial, so I'll assume that you already
+        have one installed.
+      </p>
 
-  <div class="placeholder">
-    Screenshot: Creating the Proxmox directory<br>
-    Replace this box with your screenshot.
-  </div>
+      <p>
+        In the Proxmox web interface, select your Proxmox node
+        and find the <strong>Disks</strong> tab.
+      </p>
 
-  <p>
-    For this guide, I'm going to assume the resulting storage path is:
-  </p>
+      <figure>
 
-  <pre><code>/mnt/pve/immich-storage</code></pre>
-</section>
+        <img
+          src="images/disks.png"
+          alt="Proxmox disks tab"
+          class="screenshot"
+        >
 
-<section id="step6">
-  <h2><span class="step-number">Step 6.</span> The Scary Part — The CLI</h2>
+        <figcaption>
+          Proxmox Disks tab
+        </figcaption>
 
-  <p>
-    Now we're going to connect the storage to the Immich LXC container.
-  </p>
+      </figure>
 
-  <p>
-    This part requires using the Proxmox command line, so double-check
-    everything before pressing Enter.
-  </p>
+      <p>
+        Select the drive you want to use and click
+        <strong>Wipe Disk</strong>.
+      </p>
 
-  <p>
-    First, <strong>shut down your Immich LXC container.</strong>
-  </p>
+      <div class="alert danger">
 
-  <p>
-    On your Proxmox node, create the directory where Immich's photos
-    will live:
-  </p>
+        <span class="alert-title">
+          IMPORTANT — THIS WILL ERASE THE DRIVE
+        </span>
 
-  <pre><code>mkdir -p /mnt/pve/immich-storage/immich-data</code></pre>
+        Make absolutely sure there is nothing valuable on
+        this drive before wiping it.
 
-  <p>
-    Next, attach that directory to the Immich container.
-    Replace <code>&lt;container-id&gt;</code> with the actual ID of
-    your Immich LXC container:
-  </p>
+      </div>
 
-  <pre><code>pct set &lt;container-id&gt; -mp0 /mnt/pve/immich-storage/immich-data,mp=/mnt/immich-data</code></pre>
+      <p>
+        Next, initialize the disk with <strong>GPT</strong>.
+      </p>
 
-  <p>
-    This attaches the directory on the Proxmox host as a mount point
-    inside the LXC container.
-  </p>
+      <p>
+        Then go to the <strong>Directory</strong> section
+        of the Proxmox Disks page.
+      </p>
 
-  <p>Finally, fix the permissions:</p>
+      <p>
+        Click <strong>Create: Directory</strong> and configure
+        it using the disk you just prepared.
+      </p>
 
-  <pre><code>chown -R 100000:100000 /mnt/pve/immich-storage/immich-data</code></pre>
+      <figure>
 
-  <p>
-    You can now start your Immich container again.
-  </p>
-</section>
+        <img
+          src="images/directory.png"
+          alt="Creating a Proxmox directory"
+          class="screenshot"
+        >
 
-<section id="step7">
-  <h2><span class="step-number">Step 7.</span> Configure the Immich Mount</h2>
+        <figcaption>
+          Creating the Proxmox storage directory
+        </figcaption>
 
-  <p>
-    Now connect to the shell of your Immich LXC container.
-  </p>
+      </figure>
 
-  <p>
-    Before changing the storage configuration, stop the Immich web and
-    machine-learning services:
-  </p>
+      <p>
+        For this guide, I'll assume the resulting storage path is:
+      </p>
 
-  <pre><code>systemctl stop immich-web immich-ml</code></pre>
+      <pre><code>/mnt/pve/immich-storage</code></pre>
 
-  <p>
-    To verify that the mount was successful, run:
-  </p>
+    </section>
 
-  <pre><code>ls /mnt</code></pre>
+    <!-- ===================================================
+         STEP 6
+    ==================================================== -->
 
-  <p>
-    You should see:
-  </p>
+    <section id="step6">
 
-  <pre><code>immich-data</code></pre>
+      <h2>
+        <span class="step-number">Step 6.</span>
+        The Scary Part — The CLI
+      </h2>
 
-  <h3>Change the Immich Upload Location</h3>
+      <p>
+        Shut down your Immich container.
+      </p>
 
-  <p>
-    The Immich Community Script stores the configuration in:
-  </p>
+      <p>
+        On your Proxmox node, create the directory where the
+        images will live:
+      </p>
 
-  <pre><code>/opt/immich/.env</code></pre>
+      <pre><code>mkdir -p /mnt/pve/immich-storage/immich-data</code></pre>
 
-  <p>Open the file with nano:</p>
+      <p>
+        Next, create the mount point:
+      </p>
 
-  <pre><code>nano /opt/immich/.env</code></pre>
+      <pre><code>pct set &lt;container-id&gt; -mp0 /mnt/pve/immich-storage/immich-data,mp=/mnt/immich-data</code></pre>
 
-  <p>
-    Find the line containing <code>IMMICH_MEDIA_LOCATION</code>
-    and change it to:
-  </p>
+      <p>
+        Replace <code>&lt;container-id&gt;</code> with your
+        Immich container ID.
+      </p>
 
-  <pre><code>IMMICH_MEDIA_LOCATION=/mnt/immich-data</code></pre>
+      <p>
+        This attaches the host directory as a mount point
+        inside the LXC container.
+      </p>
 
-  <div class="placeholder">
-    Screenshot: Changing the Immich upload location<br>
-    Replace this box with your screenshot.
-  </div>
+      <p>
+        Now fix the permissions:
+      </p>
 
-  <p>Save and exit nano:</p>
+      <pre><code>chown -R 100000:100000 /mnt/pve/immich-storage/immich-data</code></pre>
 
-  <ol>
-    <li>Press <strong>Ctrl+O</strong></li>
-    <li>Press <strong>Enter</strong></li>
-    <li>Press <strong>Ctrl+X</strong></li>
-  </ol>
+      <p>
+        Now start your Immich container again.
+      </p>
 
-  <h3>Move the Existing Immich Data</h3>
+    </section>
 
-  <p>
-    There's one more important step that I forgot the first time I did this.
-  </p>
+    <!-- ===================================================
+         STEP 7
+    ==================================================== -->
 
-  <p>
-    If Immich has already created files on the original drive, you need
-    to move those files to the new storage location.
-  </p>
+    <section id="step7">
 
-  <pre><code>cp -a /opt/immich/upload/. /mnt/immich-data/</code></pre>
+      <h2>
+        <span class="step-number">Step 7.</span>
+        Configure the Mount
+      </h2>
 
-  <p>Then fix the ownership:</p>
+      <p>
+        Open the shell inside your Immich LXC container.
+      </p>
 
-  <pre><code>chown -R immich:immich /mnt/immich-data</code></pre>
+      <p>
+        Stop the Immich web and machine-learning services:
+      </p>
 
-  <p>Finally, reboot the container:</p>
+      <pre><code>systemctl stop immich-web immich-ml</code></pre>
 
-  <pre><code>reboot</code></pre>
+      <p>
+        To verify that the mount worked, run:
+      </p>
 
-  <p>
-    After the reboot, verify that Immich is working correctly before
-    moving on.
-  </p>
-</section>
+      <pre><code>ls /mnt</code></pre>
 
-<section id="step8">
-  <h2><span class="step-number">Step 8.</span> Prepare the LXC for Tailscale</h2>
+      <p>
+        You should see:
+      </p>
 
-  <p>
-    Now we're going to set up Tailscale.
-  </p>
+      <pre><code>immich-data</code></pre>
 
-  <p>
-    The reason I'm using Tailscale is so that I can access Immich when
-    I'm away from home without exposing the Immich server directly
-    to the internet.
-  </p>
+      <h3>
+        Change the Upload Location
+      </h3>
 
-  <p>
-    There's one complication, though.
-  </p>
+      <p>
+        If you installed Immich through the LXC Community Script,
+        the configuration file is located at:
+      </p>
 
-  <p>
-    The Immich LXC created by the Community Script is an
-    <strong>unprivileged container</strong>. Tailscale needs access to
-    <code>/dev/net/tun</code>, which is blocked by default in unprivileged
-    LXC containers.
-  </p>
+      <pre><code>/opt/immich/.env</code></pre>
 
-  <p>
-    We're going to make a small configuration change to allow it.
-  </p>
+      <p>
+        Open it using nano:
+      </p>
 
-  <p>
-    First, stop the Immich container from the Proxmox shell:
-  </p>
+      <pre><code>nano /opt/immich/.env</code></pre>
 
-  <pre><code>pct stop &lt;container-id&gt;</code></pre>
+      <p>
+        Find the line containing:
+      </p>
 
-  <p>
-    Replace <code>&lt;container-id&gt;</code> with the ID of your Immich container.
-  </p>
+      <pre><code>IMMICH_MEDIA_LOCATION</code></pre>
 
-  <p>Next, open the LXC configuration file:</p>
+      <p>
+        Change it to:
+      </p>
 
-  <pre><code>nano /etc/pve/lxc/&lt;container-id&gt;.conf</code></pre>
+      <pre><code>IMMICH_MEDIA_LOCATION=/mnt/immich-data</code></pre>
 
-  <p>Add these two lines to the bottom of the file:</p>
+      <figure>
 
-  <pre><code>lxc.cgroup2.devices.allow: c 10:200 rwm
+        <img
+          src="images/upload-config.png"
+          alt="Changing the Immich media location"
+          class="screenshot"
+        >
+
+        <figcaption>
+          Changing the Immich media location
+        </figcaption>
+
+      </figure>
+
+      <p>
+        Save and exit nano using:
+      </p>
+
+      <ol>
+
+        <li>
+          Press <strong>Ctrl+O</strong>
+        </li>
+
+        <li>
+          Press <strong>Enter</strong>
+        </li>
+
+        <li>
+          Press <strong>Ctrl+X</strong>
+        </li>
+
+      </ol>
+
+      <h3>
+        Move Existing Files
+      </h3>
+
+      <p>
+        There's one more thing I forgot about the first time I
+        did this.
+      </p>
+
+      <p>
+        You need to move what is currently on the old drive to
+        the new drive.
+      </p>
+
+      <p>
+        Run:
+      </p>
+
+      <pre><code>cp -a /opt/immich/upload/. /mnt/immich-data/</code></pre>
+
+      <p>
+        Then modify the permissions:
+      </p>
+
+      <pre><code>chown -R immich:immich /mnt/immich-data</code></pre>
+
+      <p>
+        Finally, reboot the system:
+      </p>
+
+      <pre><code>reboot</code></pre>
+
+    </section>
+
+    <!-- ===================================================
+         STEP 8
+    ==================================================== -->
+
+    <section id="step8">
+
+      <h2>
+        <span class="step-number">Step 8.</span>
+        Prepare to Install Tailscale
+      </h2>
+
+      <p>
+        I want to be able to access this from anywhere.
+      </p>
+
+      <p>
+        We can achieve that using Tailscale, which means we don't
+        have to expose Immich directly to the internet.
+      </p>
+
+      <p>
+        The problem is that this is an unprivileged LXC container,
+        so we have to do some extra configuration.
+      </p>
+
+      <p>
+        Stop the container from the Proxmox shell:
+      </p>
+
+      <pre><code>pct stop &lt;container-id&gt;</code></pre>
+
+      <p>
+        The issue with an unprivileged container is that it needs
+        access to the <code>/dev/net/tun</code> device, which is
+        blocked by default.
+      </p>
+
+      <p>
+        In the Proxmox shell, open the LXC configuration file:
+      </p>
+
+      <pre><code>nano /etc/pve/lxc/&lt;container-id&gt;.conf</code></pre>
+
+      <p>
+        Add these two lines to the bottom:
+      </p>
+
+      <pre><code>lxc.cgroup2.devices.allow: c 10:200 rwm
 
 lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file</code></pre>
 
-  <p>Save and exit.</p>
+      <p>
+        Save the file.
+      </p>
 
-  <h3>Enable Nesting</h3>
+      <h3>
+        Enable Nesting
+      </h3>
 
-  <p>
-    In the Proxmox web interface, open the Immich LXC container and go to:
-  </p>
+      <p>
+        In the Proxmox web GUI, go to your Immich LXC container.
+      </p>
 
-  <p><strong>Options → Features</strong></p>
+      <p>
+        Navigate to:
+      </p>
 
-  <p>Make sure <strong>Nesting</strong> is enabled.</p>
+      <pre><code>Options → Features</code></pre>
 
-  <div class="placeholder">
-    Screenshot: Nesting enabled in Proxmox<br>
-    Replace this box with your screenshot.
+      <p>
+        Make sure <strong>Nesting</strong> is enabled.
+      </p>
+
+      <figure>
+
+        <img
+          src="images/nesting-enabled.png"
+          alt="Proxmox nesting enabled"
+          class="screenshot"
+        >
+
+        <figcaption>
+          Nesting enabled in the Proxmox LXC options
+        </figcaption>
+
+      </figure>
+
+      <p>
+        It was enabled for me by default, but it is worth checking.
+      </p>
+
+      <p>
+        Now start the LXC container.
+      </p>
+
+    </section>
+
+    <!-- ===================================================
+         STEP 9
+    ==================================================== -->
+
+    <section id="step9">
+
+      <h2>
+        <span class="step-number">Step 9.</span>
+        Install Tailscale
+      </h2>
+
+      <p>
+        Inside the Immich LXC container, run:
+      </p>
+
+      <pre><code>curl -fsSL https://tailscale.com/install.sh | sh</code></pre>
+
+      <p>
+        Again, if you prefer to read through everything happening
+        in the script, you can review it before running it.
+      </p>
+
+      <p>
+        Once Tailscale is installed, run:
+      </p>
+
+      <pre><code>tailscale up</code></pre>
+
+      <p>
+        Tailscale will give you a link to log in.
+      </p>
+
+      <p>
+        Open the link and log into your Tailscale account.
+      </p>
+
+      <p>
+        Once you've finished authenticating the machine, it will
+        be added to your Tailscale network.
+      </p>
+
+      <p>
+        Reboot the container:
+      </p>
+
+      <pre><code>reboot</code></pre>
+
+      <div class="success">
+
+        <h2>
+          Tailscale is Installed!
+        </h2>
+
+        <p>
+          Your Immich server should now be connected to your
+          Tailscale network.
+        </p>
+
+      </div>
+
+    </section>
+
+    <!-- ===================================================
+         STEP 10
+    ==================================================== -->
+
+    <section id="step10">
+
+      <h2>
+        <span class="step-number">Step 10.</span>
+        Set Up the Immich Server
+      </h2>
+
+      <p>
+        Now we need to access the Immich web interface.
+      </p>
+
+      <p>
+        Inside your Immich LXC container, run:
+      </p>
+
+      <pre><code>ip a</code></pre>
+
+      <p>
+        Find the network interface. It should look something like:
+      </p>
+
+      <pre><code>eth0@if26: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</code></pre>
+
+      <p>
+        You should be able to find your IP address on or near this
+        interface.
+      </p>
+
+      <div class="alert warning">
+
+        <span class="alert-title">
+          Important
+        </span>
+
+        We don't want to use the Tailscale address yet.
+        Use the normal local network IP address to set up Immich.
+
+      </div>
+
+      <p>
+        Open a web browser and go to:
+      </p>
+
+      <pre><code>http://&lt;ip-address&gt;:2283</code></pre>
+
+      <p>
+        Replace <code>&lt;ip-address&gt;</code> with the IP address
+        of your Immich container.
+      </p>
+
+      <p>
+        You should now see the Immich setup page.
+      </p>
+
+      <p>
+        Click <strong>Getting Started</strong> and create your
+        Immich user.
+      </p>
+
+      <figure>
+
+        <img
+          src="images/getting-started-with-immich.png"
+          alt="Immich Getting Started page"
+          class="screenshot"
+        >
+
+        <figcaption>
+          Immich Getting Started page
+        </figcaption>
+
+      </figure>
+
+    </section>
+
+    <!-- ===================================================
+         STEP 11
+    ==================================================== -->
+
+    <section id="step11">
+
+      <h2>
+        <span class="step-number">Step 11.</span>
+        Access Immich From Your Other Devices
+      </h2>
+
+      <p>
+        Now for the fun part.
+      </p>
+
+      <p>
+        Install Tailscale on your phone, tablet, laptop, or
+        whatever device you want to use to access Immich.
+      </p>
+
+      <p>
+        On Android, Tailscale is available through the Google
+        Play Store.
+      </p>
+
+      <p>
+        Log into the same Tailscale account you used for your
+        Immich server.
+      </p>
+
+      <p>
+        Once connected, you should be able to see your Immich
+        server from your device.
+      </p>
+
+      <p>
+        If you click on your Immich server in Tailscale, you can
+        see a lot of information about it.
+      </p>
+
+      <p>
+        Most importantly, you'll see:
+      </p>
+
+      <ul>
+
+        <li>
+          The MagicDNS address
+        </li>
+
+        <li>
+          The IPv4 address
+        </li>
+
+        <li>
+          The IPv6 address
+        </li>
+
+      </ul>
+
+      <h3>
+        Install the Immich App
+      </h3>
+
+      <p>
+        Download the Immich mobile app on your phone.
+      </p>
+
+      <p>
+        When the Immich app asks for your server address, you
+        can use either the Tailscale IP address or the MagicDNS
+        address.
+      </p>
+
+      <p>
+        For example:
+      </p>
+
+      <pre><code>http://100.x.x.x:2283</code></pre>
+
+      <p>
+        Or:
+      </p>
+
+      <pre><code>http://your-immich-server:2283</code></pre>
+
+      <p>
+        Log in with the username and password you created earlier.
+      </p>
+
+      <div class="success">
+
+        <h2>
+          🎉 You Did It!
+        </h2>
+
+        <p>
+          You now have your own self-hosted photo library that
+          you can access from anywhere your devices are connected
+          to Tailscale.
+        </p>
+
+        <p>
+          And you didn't have to expose Immich directly to the
+          public internet.
+        </p>
+
+      </div>
+
+    </section>
+
+    <!-- ===================================================
+         FINAL THOUGHTS
+    ==================================================== -->
+
+    <section id="final-thoughts">
+
+      <h2>
+        Final Thoughts
+      </h2>
+
+      <p>
+        There are a lot of moving parts in this setup:
+      </p>
+
+      <ul>
+
+        <li>Proxmox</li>
+
+        <li>An Immich LXC container</li>
+
+        <li>Separate storage</li>
+
+        <li>LXC mount points</li>
+
+        <li>Immich configuration</li>
+
+        <li>Tailscale</li>
+
+        <li>Your mobile devices</li>
+
+      </ul>
+
+      <p>
+        But once everything is configured, the end result is
+        pretty awesome.
+      </p>
+
+      <p>
+        You get your own private photo library, your photos stay
+        on your own hardware, and Tailscale gives you a convenient
+        way to access them when you're away from home.
+      </p>
+
+      <div class="alert danger">
+
+        <span class="alert-title">
+          Don't Forget About Backups
+        </span>
+
+        Having your photos stored on a separate drive is helpful,
+        but a separate drive in the same machine is
+        <strong>not a backup</strong>.
+        If your photos are important, make sure you have another
+        copy somewhere else.
+
+      </div>
+
+    </section>
+
+    <!-- ===================================================
+         USEFUL LINKS
+    ==================================================== -->
+
+    <section id="links">
+
+      <h2>
+        Useful Links
+      </h2>
+
+      <a
+        class="link-card"
+        href="https://immich.app/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+
+        <strong>
+          Immich
+        </strong>
+
+        <span>
+          The self-hosted photo and video management platform.
+        </span>
+
+      </a>
+
+      <a
+        class="link-card"
+        href="https://immich.app/docs/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+
+        <strong>
+          Immich Documentation
+        </strong>
+
+        <span>
+          Official Immich documentation.
+        </span>
+
+      </a>
+
+      <a
+        class="link-card"
+        href="https://tailscale.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+
+        <strong>
+          Tailscale
+        </strong>
+
+        <span>
+          Secure networking for accessing your server remotely.
+        </span>
+
+      </a>
+
+      <a
+        class="link-card"
+        href="https://www.proxmox.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+
+        <strong>
+          Proxmox
+        </strong>
+
+        <span>
+          The virtualization platform used for this guide.
+        </span>
+
+      </a>
+
+      <a
+        class="link-card"
+        href="https://community-scripts.org/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+
+        <strong>
+          Proxmox Community Scripts
+        </strong>
+
+        <span>
+          Community-maintained scripts for Proxmox.
+        </span>
+
+      </a>
+
+      <a
+        class="link-card"
+        href="https://community-scripts.org/scripts/immich"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+
+        <strong>
+          Immich Community Script
+        </strong>
+
+        <span>
+          The Community Script used to install Immich.
+        </span>
+
+      </a>
+
+      <a
+        class="link-card"
+        href="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/immich.sh"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+
+        <strong>
+          Immich Installation Script Source
+        </strong>
+
+        <span>
+          View the actual installation script before running it.
+        </span>
+
+      </a>
+
+    </section>
+
   </div>
 
-  <p>
-    Nesting was already enabled for me by default, but it's worth checking.
-  </p>
+</main>
 
-  <p>
-    Once that's done, start the Immich container.
-  </p>
-</section>
+</div> <!-- ========================================================= FOOTER ========================================================== --> <footer>
 
-<section id="step9">
-  <h2><span class="step-number">Step 9.</span> Install Tailscale</h2>
+<p>
+  Immich + Tailscale on Proxmox
+</p>
 
-  <p>
-    Now it's time to install Tailscale.
-  </p>
-
-  <p>Inside the Immich LXC container, run:</p>
-
-  <pre><code>curl -fsSL https://tailscale.com/install.sh | sh</code></pre>
-
-  <p>
-    As with the Community Script, you can review the script before running
-    it if you'd rather see exactly what you're executing.
-  </p>
-
-  <p>Once Tailscale has finished installing, run:</p>
-
-  <pre><code>tailscale up</code></pre>
-
-  <p>
-    Tailscale will provide you with a link.
-  </p>
-
-  <p>
-    Open that link and sign into your Tailscale account.
-    Once you've authenticated the machine, it should appear in
-    your Tailscale network.
-  </p>
-
-  <p>At this point, you can reboot the container:</p>
-
-  <pre><code>reboot</code></pre>
-
-  <p>
-    Congratulations! Your Immich server should now be connected
-    to your Tailscale network.
-  </p>
-</section>
-
-<section id="step10">
-  <h2><span class="step-number">Step 10.</span> Set Up the Immich Server</h2>
-
-  <p>
-    Before configuring the Immich app, we need to access the
-    Immich web interface.
-  </p>
-
-  <p>Inside your Immich LXC container, run:</p>
-
-  <pre><code>ip a</code></pre>
-
-  <p>
-    Look for your network interface. It should look something like:
-  </p>
-
-  <pre><code>eth0@if26: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</code></pre>
-
-  <p>
-    You should be able to find the container's local IP address nearby.
-  </p>
-
-  <div class="warning">
-    <strong>Important</strong>
-    At this point, don't use the Tailscale IP address. We're going to use
-    the normal local network address to perform the initial Immich setup.
-  </div>
-
-  <p>
-    Open a web browser and go to:
-  </p>
-
-  <pre><code>http://&lt;ip-address&gt;:2283</code></pre>
-
-  <p>
-    Replace <code>&lt;ip-address&gt;</code> with the IP address
-    of your Immich container.
-  </p>
-
-  <p>
-    You should now see the Immich setup page.
-  </p>
-
-  <p>
-    Click <strong>Getting Started</strong> and create your Immich
-    administrator account.
-  </p>
-
-  <div class="placeholder">
-    Screenshot: Getting Started with Immich<br>
-    Replace this box with your screenshot.
-  </div>
-</section>
-
-<section id="step11">
-  <h2><span class="step-number">Step 11.</span> Access Immich from Your Other Devices</h2>
-
-  <p>
-    Now for the fun part.
-  </p>
-
-  <p>
-    Install Tailscale on the phone, tablet, laptop, or other device
-    you want to use to access Immich.
-  </p>
-
-  <p>
-    For Android, Tailscale is available through the Google Play Store.
-  </p>
-
-  <p>
-    Log into the same Tailscale account you used for your Immich server
-    and add the device to your network.
-  </p>
-
-  <p>
-    Once connected, you should be able to see your Immich server in Tailscale.
-  </p>
-
-  <p>
-    If you select the Immich server, Tailscale will show you information
-    about the machine, including its:
-  </p>
-
-  <ul>
-    <li>MagicDNS hostname</li>
-    <li>IPv4 address</li>
-    <li>IPv6 address</li>
-  </ul>
-
-  <p>
-    Now install the Immich mobile app on your phone.
-  </p>
-
-  <p>
-    When the Immich app asks for your server URL, you can use either
-    the Tailscale IP address or the MagicDNS hostname.
-  </p>
-
-  <p>For example:</p>
-
-  <pre><code>http://100.x.x.x:2283</code></pre>
-
-  <p>or:</p>
-
-  <pre><code>http://your-immich-server:2283</code></pre>
-
-  <p>
-    Log in using the Immich username and password you created earlier.
-  </p>
-
-  <p>
-    And that's it!
-  </p>
-
-  <div class="final">
-    <h2 id="final">🎉 Good Job!</h2>
-
-    <p>
-      You now have a self-hosted photo library that you can access from
-      anywhere your devices are connected to Tailscale, without having
-      to expose your Immich server directly to the public internet.
-    </p>
-  </div>
-
-</section>
-
-<section>
-  <h2>Final Thoughts</h2>
-
-  <p>
-    There are a lot of moving parts in this setup:
-  </p>
-
-  <ul>
-    <li>Proxmox</li>
-    <li>An Immich LXC container</li>
-    <li>Separate storage</li>
-    <li>LXC mount points</li>
-    <li>Immich configuration</li>
-    <li>Tailscale</li>
-    <li>Your mobile devices</li>
-  </ul>
-
-  <p>
-    But once everything is configured, the end result is pretty awesome.
-  </p>
-
-  <p>
-    You get your own private photo library, your photos stay on your
-    own hardware, and Tailscale gives you a convenient way to access
-    them when you're away from home.
-  </p>
-
-  <div class="danger">
-    <strong>Remember: Self-hosting means you are responsible for your backups.</strong>
-    Having your photos stored on a separate drive is helpful, but a
-    separate drive in the same machine is <strong>not a backup</strong>.
-    If your photos are important, make sure you have another copy somewhere else.
-  </div>
-</section>
-
-<section>
-  <h2>Useful Links</h2>
-
-  <ul>
-    <li>
-      <a href="https://immich.app/" target="_blank" rel="noopener">
-        Immich
-      </a>
-    </li>
-
-    <li>
-      <a href="https://immich.app/docs/" target="_blank" rel="noopener">
-        Immich Documentation
-      </a>
-    </li>
-
-    <li>
-      <a href="https://tailscale.com/" target="_blank" rel="noopener">
-        Tailscale
-      </a>
-    </li>
-
-    <li>
-      <a href="https://www.proxmox.com/" target="_blank" rel="noopener">
-        Proxmox
-      </a>
-    </li>
-
-    <li>
-      <a href="https://community-scripts.org/" target="_blank" rel="noopener">
-        Proxmox Community Scripts
-      </a>
-    </li>
-
-    <li>
-      <a href="https://community-scripts.org/scripts/immich"
-         target="_blank"
-         rel="noopener">
-        Immich Community Script
-      </a>
-    </li>
-
-    <li>
-      <a href="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/immich.sh"
-         target="_blank"
-         rel="noopener">
-        Immich Installation Script Source
-      </a>
-    </li>
-  </ul>
-</section>
-
-</div> </main> <footer> <div class="container"> <p> Immich + Tailscale on Proxmox </p> <p> Self-hosted with ❤️ </p> </div> </footer> </body> </html>
+</footer> </body> </html>
